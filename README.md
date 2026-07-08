@@ -68,7 +68,7 @@ These all have working defaults (`scripts/istio/config`) — you only need to se
     "type": "string",
     "title": "Base Domain",
     "description": "Shared domain for path-based routing.",
-    "enum": ["path-router.example.com"]
+    "enum": ["path-router.example.com", "path-router.api-private.playground.nullapps.io"]
 }
 ```
 
