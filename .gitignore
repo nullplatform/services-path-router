@@ -1,6 +1,13 @@
 # Script output (generated at runtime by the agent)
 output/
 
+# Tofu / Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+specs/install/**/terraform.tfvars
+
 # IDE
 .idea/
 .vscode/

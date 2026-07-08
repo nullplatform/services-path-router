@@ -105,7 +105,7 @@ Note: **which gateway/ALB to point at depends on the visibility of the scopes yo
 
 ## Tofu Implementation (Registering the Service)
 
-path-router itself creates no AWS infrastructure, but it still needs to be **registered with nullplatform and wired to the agent** via `nullplatform/tofu-modules`. This is normally done in the account's platform-provisioning tofu project (e.g. `services-testing` / `ifr-platformups-*`), not in this repo. Three module calls are involved:
+path-router itself creates no AWS infrastructure, but it still needs to be **registered with nullplatform and wired to the agent** via `nullplatform/tofu-modules`. This is normally done in the account's platform-provisioning tofu project (e.g. `services-testing` / `ifr-platformups-*`), not in this repo. Three module calls are involved — a ready-to-copy working example lives in [`specs/install/istio`](specs/install/istio):
 
 ### 1. Register the service specification
 

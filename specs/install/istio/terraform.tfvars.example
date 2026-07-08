@@ -1,0 +1,15 @@
+nrn = "" # namespace-level NRN, e.g. organization=<org>:account=<account>:namespace=<namespace>
+
+tags_selectors = {
+  "environment" = ""
+}
+
+scope_specification_id   = "" # the scope spec whose apps path-router will route to
+scope_specification_slug = ""
+
+# override_repo_path = "/root/.np/nullplatform/services-path-router"
+# agent_service_path = "/root/.np/nullplatform/services-path-router"
+
+# repository_org    = "nullplatform"
+# repository_name   = "services-path-router"
+# repository_branch = "main"
