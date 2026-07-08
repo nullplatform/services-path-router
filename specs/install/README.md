@@ -52,3 +52,30 @@ This only registers the service with the platform and wires the deployment
 hook — it does not create the Gateway API resources or DNS records the
 service needs to actually route traffic. See the top-level
 [`README.md`](../../README.md) ("Requirements") for those steps.
+
+## Wiring the agent (`agent_repos_extra`)
+
+Registering the service specification is not enough on its own — the agent
+also needs this repository checked out locally so it can actually run
+`entrypoint/entrypoint` and `container-scope-override/deployment/sync_router`
+when an action fires. Add it to the `agent_repos_extra` variable of the
+`nullplatform/agent` tofu-module (the module that deploys the agent, usually
+in a separate cluster-provisioning tofu project, not in this one):
+
+```hcl
+agent_repos_extra = [
+  # ...other repos the agent needs...
+  "https://github.com/nullplatform/services-path-router.git#main", # or the branch you're testing
+]
+```
+
+Without this, `service_definition`/`service_definition_agent_association`
+above will succeed and the service will look correctly registered, but every
+action will fail once it reaches the agent — it has no local copy of
+`entrypoint/entrypoint` to run. If the repository is still private, use an
+authenticated URL instead (`https://<token>@github.com/...`) and drop the
+token once it's public.
+
+After updating `agent_repos_extra`, re-apply the `nullplatform/agent` module
+— this triggers a Helm chart update that restarts the agent pod with the new
+repository list.
