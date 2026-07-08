@@ -1,0 +1,10 @@
+# Script output (generated at runtime by the agent)
+output/
+
+# IDE
+.idea/
+.vscode/
+.claude/
+
+# OS
+.DS_Store
