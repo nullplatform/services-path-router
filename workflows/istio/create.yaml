@@ -1,0 +1,41 @@
+steps:
+  - name: "find k8s namespace"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/fetch_provider_data"
+    output:
+      - name: K8S_NAMESPACE
+        type: environment
+  - name: "build context"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/build_context"
+    output:
+      - name: SERVICE_ID
+        type: environment
+      - name: SERVICE_SLUG
+        type: environment
+      - name: ACTION_ID
+        type: environment
+      - name: ACTION_NAME
+        type: environment
+      - name: APPLICATION_ID
+        type: environment
+      - name: BASE_DOMAIN
+        type: environment
+      - name: STRIP_PREFIX
+        type: environment
+      - name: PATH_PREFIX
+        type: environment
+      - name: SCOPE_SLUG
+        type: environment
+  - name: "check path conflict"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/check_path_conflict"
+  - name: "build httproute"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/build_httproute"
+  - name: apply
+    type: script
+    file: "$SERVICE_PATH/scripts/common/apply"
+    configuration:
+      ACTION: apply
+      DRY_RUN: false

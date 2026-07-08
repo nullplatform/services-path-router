@@ -1,0 +1,18 @@
+steps:
+  - name: "find k8s namespace"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/fetch_provider_data"
+    output:
+      - name: K8S_NAMESPACE
+        type: environment
+  - name: "build delete context"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/build_delete_context"
+    output:
+      - name: SERVICE_ID
+        type: environment
+      - name: SCOPE_ID
+        type: environment
+  - name: "delete httproutes"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/delete_httproutes"
