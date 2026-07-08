@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+if [[ -n "${SCOPE_ID:-}" && "$SCOPE_ID" != "null" ]]; then
+    echo "Deleting HTTPRoute for service=$SERVICE_ID scope=$SCOPE_ID..."
+    kubectl delete httproute -n "$K8S_NAMESPACE" \
+        -l "nullplatform.com/service-id=$SERVICE_ID,nullplatform.com/scope-id=$SCOPE_ID" \
+        --ignore-not-found
+else
+    echo "Deleting all HTTPRoutes for service=$SERVICE_ID..."
+    kubectl delete httproute -n "$K8S_NAMESPACE" \
+        -l "nullplatform.com/service-id=$SERVICE_ID" \
+        --ignore-not-found
+fi
+
+echo "Delete complete"

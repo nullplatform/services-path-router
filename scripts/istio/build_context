@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+SERVICE_ID=$(echo "$CONTEXT" | jq -r '.service.id')
+SERVICE_SLUG=$(echo "$CONTEXT" | jq -r '.service.slug')
+ACTION_ID=$(echo "$CONTEXT" | jq -r '.id')
+ACTION_NAME=$(echo "$CONTEXT" | jq -r '.slug')
+APPLICATION_ID=$(echo "$CONTEXT" | jq -r '.tags.application_id // ""')
+
+BASE_DOMAIN=$(echo "$CONTEXT" | jq -r '.service.attributes.base_domain // .parameters.base_domain // ""')
+STRIP_PREFIX=$(echo "$CONTEXT" | jq -r '.service.attributes.strip_prefix // .parameters.strip_prefix // "true"')
+PATH_PREFIX=$(echo "$CONTEXT" | jq -r '.service.attributes.path_prefix // .parameters.path_prefix // ""')
+SCOPE_SLUG=$(echo "$CONTEXT" | jq -r '.service.attributes.scope // .parameters.scope // ""')
+
+[[ -z "$BASE_DOMAIN" ]]  && { echo "ERROR: base_domain is required in service attributes"; exit 1; }
+[[ -z "$PATH_PREFIX" ]]  && { echo "ERROR: path_prefix is required in service attributes"; exit 1; }
+[[ -z "$SCOPE_SLUG" ]]   && { echo "ERROR: scope is required in service attributes"; exit 1; }
+
+export OUTPUT_DIR="${SERVICE_PATH}/output/${SERVICE_SLUG}-${SERVICE_ID}/${ACTION_NAME}-${ACTION_ID}"
+mkdir -p "$OUTPUT_DIR"
+
+export SERVICE_ID SERVICE_SLUG ACTION_ID ACTION_NAME APPLICATION_ID
+export BASE_DOMAIN STRIP_PREFIX PATH_PREFIX SCOPE_SLUG

@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "Checking for path conflicts: $BASE_DOMAIN$PATH_PREFIX"
+
+CONFLICT=$(kubectl get httproute -n "$K8S_NAMESPACE" \
+    -l "nullplatform.com/managed-by=path-router" \
+    -o json 2>/dev/null | \
+    jq -r --arg domain "$BASE_DOMAIN" --arg path "$PATH_PREFIX" --arg sid "$SERVICE_ID" '
+        .items[] |
+        select(
+            (.spec.hostnames // [] | any(. == $domain)) and
+            (.spec.rules[].matches[].path.value == $path) and
+            (.metadata.labels["nullplatform.com/service-id"] != $sid)
+        ) | .metadata.name' 2>/dev/null || true)
+
+if [[ -n "$CONFLICT" ]]; then
+    echo "ERROR: path '$PATH_PREFIX' on '$BASE_DOMAIN' is already claimed by HTTPRoute '$CONFLICT'"
+    echo "Each path prefix must be unique per domain across all path-router service instances."
+    exit 1
+fi
+
+echo "No conflicts found — path '$PATH_PREFIX' on '$BASE_DOMAIN' is available."
