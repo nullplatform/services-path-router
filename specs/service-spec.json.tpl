@@ -47,7 +47,7 @@
                     "type": "string",
                     "title": "Base Domain",
                     "description": "Shared domain for path-based routing.",
-                    "enum": ["path-router.api-private.playground.nullapps.io"]
+                    "enum": ["path-router.example.com"]
                 },
                 "strip_prefix": {
                     "type": "boolean",

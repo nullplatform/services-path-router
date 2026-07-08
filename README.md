@@ -68,7 +68,7 @@ These all have working defaults (`scripts/istio/config`) — you only need to se
     "type": "string",
     "title": "Base Domain",
     "description": "Shared domain for path-based routing.",
-    "enum": ["path-router.api-private.playground.nullapps.io"]
+    "enum": ["path-router.example.com"]
 }
 ```
 
@@ -98,7 +98,7 @@ kubectl get ingress -n gateways gateway-alb-private -o jsonpath='{.status.loadBa
 Example Route53 alias record:
 
 ```
-path-router.api-private.playground.nullapps.io.  A (Alias)  →  dualstack.k8s-nullplatform-internet-facing-xxxxxxxxxx.us-east-1.elb.amazonaws.com.
+path-router.example.com.  A (Alias)  →  dualstack.k8s-nullplatform-internet-facing-xxxxxxxxxx.us-east-1.elb.amazonaws.com.
 ```
 
 Note: **which gateway/ALB to point at depends on the visibility of the scopes you intend to route to**, not on the domain name itself — path-router inspects the target scope's `visibility` at request-routing time (`scripts/istio/build_httproute`) and attaches the `HTTPRoute` to the matching Gateway automatically. If a single `base_domain` is ever used to route to scopes of mixed visibility, only one Gateway/ALB will be reachable at a time per route — keep one domain per visibility tier to avoid surprises.
