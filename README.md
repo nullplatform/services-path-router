@@ -153,7 +153,30 @@ module "service_definition_channel_association_path_router" {
 
 ### 3. Register the `container-scope-override` on the target scope specification
 
-This is the piece that powers [Blue/Green Deployment Sync](#bluegreen-deployment-sync). It does **not** hook into path-router's own service specification — it hooks into the **scope specification** of the applications path-router will route to, so their deploy workflow calls `container-scope-override/deployment/sync_router` on every blue/green step:
+This is the piece that powers [Blue/Green Deployment Sync](#bluegreen-deployment-sync). It does **not** hook into path-router's own service specification — it hooks into the **scope specification** of the applications path-router will route to, so their deploy workflow calls `container-scope-override/deployment/sync_router` on every blue/green step.
+
+`enabled_override` / `override_repo_path` / `overrides_service_path` are just extra inputs on the standard `scope_definition_agent_association` module — **not** a separate mechanism. If the target scope already has a `scope_definition_agent_association` module call in your project (registering its normal action-notification channel), add these three inputs to that **same** call instead of adding a second one:
+
+```hcl
+module "scope_definition_agent_association" {
+  source                   = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/scope_definition_agent_association?ref=v4.5.1"
+  nrn                      = var.nrn
+  tags_selectors           = var.tags_selectors
+  api_key                  = module.scope_definition_agent_association_api_key.api_key
+  scope_specification_id   = module.scope_definition.service_specification_id
+  scope_specification_slug = module.scope_definition.service_slug
+
+  # path-router container-scope-override — added to the scope's existing channel,
+  # not a separate module instance (see warning below).
+  enabled_override        = true
+  override_repo_path      = "/root/.np/nullplatform/services-path-router"
+  overrides_service_path  = "/container-scope-override"
+}
+```
+
+> **Don't add a second `scope_definition_agent_association`-based module call for the same scope just to carry the override.** The channel's `filters` are built solely from `scope_specification_slug` / `scope_specification_id` (see `k8s/specs/notification-channel.json.tpl` in `nullplatform/scopes`) — `enabled_override` doesn't change them, it only appends `--overrides-path=...` to the channel's `cmdline`. Two module calls pointed at the same scope produce two `nullplatform_notification_channel` resources with **identical filters**, so every action notification for that scope fires both channels: the base entrypoint logic runs twice, once per channel, and one of the two invocations additionally triggers the override sync. Only reach for a dedicated `scope_channel_association`-style module (below) when the target scope does **not** already have its own agent association in your project.
+
+If the target scope has no existing `scope_definition_agent_association` in your project (e.g. it's a shared scope another team owns and you're only adding the override), register a dedicated instance instead:
 
 ```hcl
 module "scope_channel_association" {
