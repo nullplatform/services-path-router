@@ -1,23 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
-SERVICE_ID=$(echo "$CONTEXT" | jq -r '.service.id')
-SERVICE_SLUG=$(echo "$CONTEXT" | jq -r '.service.slug')
-ACTION_ID=$(echo "$CONTEXT" | jq -r '.id')
-ACTION_NAME=$(echo "$CONTEXT" | jq -r '.slug')
-APPLICATION_ID=$(echo "$CONTEXT" | jq -r '.tags.application_id // ""')
+# This np CLI version does NOT expose the action's own id/slug/parameters
+# through the $CONTEXT built by `--build-context` - that JSON only carries
+# related entities (scope/application/namespace/account, per its --include
+# list, which doesn't even have "service" as an option). The action's own
+# identity and submitted create-form values arrive as flat ACTION_* env
+# vars instead, set directly by `np service workflow exec` (confirmed live
+# via a real failed action: ACTION_PARAMETERS_BASE_DOMAIN etc. were present
+# and correct while $CONTEXT had none of this).
+SERVICE_ID="$ACTION_SERVICE_ID"
+SERVICE_SLUG="$ACTION_SERVICE_SLUG"
+ACTION_ID="$ACTION_ID"
+ACTION_NAME="$ACTION_SLUG"
+APPLICATION_ID="${ACTION_TAGS_APPLICATION_ID:-}"
 
-# Merge service attributes with parameters, parameters win - on the first
-# create action .service.attributes already exists with empty-string
-# values (not null) for every schema property, so a plain
-# `.service.attributes.x // .parameters.x` never falls through to
-# parameters (jq's // only falls back on null/false, not on "").
-SERVICE_ATTRS=$(echo "$CONTEXT" | jq -c '(.service.attributes // {}) * (.parameters // {})')
-
-BASE_DOMAIN=$(echo "$SERVICE_ATTRS" | jq -r '.base_domain // ""')
-STRIP_PREFIX=$(echo "$SERVICE_ATTRS" | jq -r '.strip_prefix // "true"')
-PATH_PREFIX=$(echo "$SERVICE_ATTRS" | jq -r '.path_prefix // ""')
-SCOPE_SLUG=$(echo "$SERVICE_ATTRS" | jq -r '.scope // ""')
+BASE_DOMAIN="${ACTION_PARAMETERS_BASE_DOMAIN:-}"
+STRIP_PREFIX="${ACTION_PARAMETERS_STRIP_PREFIX:-true}"
+PATH_PREFIX="${ACTION_PARAMETERS_PATH_PREFIX:-}"
+SCOPE_SLUG="${ACTION_PARAMETERS_SCOPE:-}"
 
 [[ -z "$BASE_DOMAIN" ]]  && { echo "ERROR: base_domain is required in service attributes"; exit 1; }
 [[ -z "$PATH_PREFIX" ]]  && { echo "ERROR: path_prefix is required in service attributes"; exit 1; }
