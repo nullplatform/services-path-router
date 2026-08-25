@@ -7,10 +7,17 @@ ACTION_ID=$(echo "$CONTEXT" | jq -r '.id')
 ACTION_NAME=$(echo "$CONTEXT" | jq -r '.slug')
 APPLICATION_ID=$(echo "$CONTEXT" | jq -r '.tags.application_id // ""')
 
-BASE_DOMAIN=$(echo "$CONTEXT" | jq -r '.service.attributes.base_domain // .parameters.base_domain // ""')
-STRIP_PREFIX=$(echo "$CONTEXT" | jq -r '.service.attributes.strip_prefix // .parameters.strip_prefix // "true"')
-PATH_PREFIX=$(echo "$CONTEXT" | jq -r '.service.attributes.path_prefix // .parameters.path_prefix // ""')
-SCOPE_SLUG=$(echo "$CONTEXT" | jq -r '.service.attributes.scope // .parameters.scope // ""')
+# Merge service attributes with parameters, parameters win - on the first
+# create action .service.attributes already exists with empty-string
+# values (not null) for every schema property, so a plain
+# `.service.attributes.x // .parameters.x` never falls through to
+# parameters (jq's // only falls back on null/false, not on "").
+SERVICE_ATTRS=$(echo "$CONTEXT" | jq -c '(.service.attributes // {}) * (.parameters // {})')
+
+BASE_DOMAIN=$(echo "$SERVICE_ATTRS" | jq -r '.base_domain // ""')
+STRIP_PREFIX=$(echo "$SERVICE_ATTRS" | jq -r '.strip_prefix // "true"')
+PATH_PREFIX=$(echo "$SERVICE_ATTRS" | jq -r '.path_prefix // ""')
+SCOPE_SLUG=$(echo "$SERVICE_ATTRS" | jq -r '.scope // ""')
 
 [[ -z "$BASE_DOMAIN" ]]  && { echo "ERROR: base_domain is required in service attributes"; exit 1; }
 [[ -z "$PATH_PREFIX" ]]  && { echo "ERROR: path_prefix is required in service attributes"; exit 1; }
