@@ -24,20 +24,44 @@ fi
 
 echo "DEBUG: SERVICE_SPEC_ID=$SERVICE_SPEC_ID"
 
-# Step 2: Get service instance that matches the SERVICE_SPEC_ID
+# Step 2: Get the active service instance that routes to the scope being deployed.
+# An application can hold several instances of the same specification (one per
+# scope/environment, or leftovers whose creation failed), so matching only by
+# specification is not enough.
+SCOPE_SLUG=$(jq -r '.scope.slug // empty' <<< "$CONTEXT")
+
+if [[ -z "$SCOPE_SLUG" ]]; then
+  echo "Error: Could not read the scope slug from the deployment context"
+  exit 1
+fi
+
+echo "DEBUG: SCOPE_SLUG=$SCOPE_SLUG"
 echo "DEBUG: Fetching services for application..."
 SERVICES=$(np service list --nrn "$APPLICATION_NRN" --format json)
 
-SERVICE=$(jq -c --arg spec_id "$SERVICE_SPEC_ID" '
-  .results
-  | map(select(.specification_id == $spec_id))
-  | .[0]
+CANDIDATE_IDS=$(jq -r --arg spec_id "$SERVICE_SPEC_ID" '
+  .results[]
+  | select(.specification_id == $spec_id and .status == "active")
+  | .id
 ' <<< "$SERVICES")
 
-SERVICE_ID=$(jq -r .id <<< "$SERVICE")
+SERVICE_ID=""
+SERVICE_DATA=""
 
-if [[ -z "$SERVICE_ID" || "$SERVICE_ID" == "null" ]]; then
-  echo "Could not find service instance for specification '$SERVICE_SPEC_ID', skipping exposer sync"
+for CANDIDATE_ID in $CANDIDATE_IDS; do
+  CANDIDATE_DATA=$(np service read --id "$CANDIDATE_ID" --format json)
+  CANDIDATE_SCOPE=$(jq -r '.attributes.scope // empty' <<< "$CANDIDATE_DATA")
+  echo "DEBUG: Candidate service[id=$CANDIDATE_ID] routes to scope '$CANDIDATE_SCOPE'"
+
+  if [[ "$CANDIDATE_SCOPE" == "$SCOPE_SLUG" ]]; then
+    SERVICE_ID="$CANDIDATE_ID"
+    SERVICE_DATA="$CANDIDATE_DATA"
+    break
+  fi
+done
+
+if [[ -z "$SERVICE_ID" ]]; then
+  echo "Could not find an active service instance for specification '$SERVICE_SPEC_ID' routing to scope '$SCOPE_SLUG', skipping exposer sync"
   exit 0
 fi
 
@@ -45,8 +69,8 @@ echo "DEBUG: SERVICE_ID=$SERVICE_ID"
 
 # Step 3: Get service attributes as parameters
 echo "DEBUG: Reading service attributes..."
-SERVICE_DATA=$(np service read --id "$SERVICE_ID" --format json)
-export PARAMETERS=$(jq -c .attributes <<< "$SERVICE_DATA")
+PARAMETERS=$(jq -c .attributes <<< "$SERVICE_DATA")
+export PARAMETERS
 
 echo "DEBUG: PARAMETERS=$PARAMETERS"
 
@@ -119,6 +143,10 @@ while [[ -z "$ACTION_ID" || "$ACTION_ID" == "null" ]]; do
     fi
 
     echo "DEBUG: No existing action found, will retry..."
+  elif echo "$ACTION_RESPONSE" | grep -q 'FST_ERR_VALIDATION'; then
+    # Validation errors are deterministic: retrying the same payload cannot succeed
+    echo "ERROR: Action parameters were rejected by validation: $ACTION_RESPONSE"
+    exit 1
   elif echo "$ACTION_RESPONSE" | grep -q '"error"'; then
     echo "ERROR: Failed to create action: $ACTION_RESPONSE"
     echo "DEBUG: Will retry after delay..."
