@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/nullplatform/services-path-router/compare/v0.1.0...v0.1.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **sync-router:** select the active instance routing to the deployed scope ([a40204e](https://github.com/nullplatform/services-path-router/commit/a40204e249d2f5521de6263e03c71387cb342f2a))
+* **sync-router:** select the active instance routing to the deployed scope ([2225518](https://github.com/nullplatform/services-path-router/commit/22255189974e75bf4eed0867ce2df57f8e6956c5)), closes [#9](https://github.com/nullplatform/services-path-router/issues/9)
+
 ## [0.1.0](https://github.com/nullplatform/services-path-router/compare/0.0.1...v0.1.0) (2026-07-08)
 
 
