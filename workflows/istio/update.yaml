@@ -27,6 +27,9 @@ steps:
         type: environment
       - name: SCOPE_SLUG
         type: environment
+  - name: "validate target"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/validate_target"
   - name: "check path conflict"
     type: script
     file: "$SERVICE_PATH/scripts/istio/check_path_conflict"
