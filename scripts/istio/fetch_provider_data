@@ -19,4 +19,39 @@ fi
 
 # K8S_NAMESPACE=$(echo "$PROVIDER_DATA" | jq -r .attributes.cluster.namespace)
 
+K8S_NAMESPACE="${K8S_NAMESPACE:-nullplatform}"
+
+# Opt-in: when the scope agent channel deploys each scope into the namespace named after
+# its application's nullplatform namespace (NAMESPACE_OVERRIDE="{$context.tags.namespace}"),
+# the HTTPRoute must live there too, next to the Services it routes to. Until the
+# application's first deploy creates that namespace, keep the K8S_NAMESPACE default; the
+# first deploy's sync_router update then moves the route.
+if [ "${APPLICATION_NAMESPACE_ROUTING:-false}" = "true" ]; then
+  NP_NAMESPACE_ID=$(echo "$NRN" | sed -nE 's/.*namespace=([0-9]+).*/\1/p')
+
+  if [ -z "$NP_NAMESPACE_ID" ]; then
+    APPLICATION_ID=$(echo "$CONTEXT" | jq -r '.tags.application_id // empty')
+    if [ -n "$APPLICATION_ID" ]; then
+      NP_NAMESPACE_ID=$(np application read --id "$APPLICATION_ID" --format json 2>/dev/null | \
+        jq -r '.namespace_id // empty' || true)
+    fi
+  fi
+
+  NP_NAMESPACE_SLUG=""
+  if [ -n "$NP_NAMESPACE_ID" ]; then
+    NP_NAMESPACE_SLUG=$(np namespace read --id "$NP_NAMESPACE_ID" --format json 2>/dev/null | \
+      jq -r '.slug // empty' || true)
+  fi
+
+  if [ -z "$NP_NAMESPACE_SLUG" ]; then
+    echo "WARNING: could not resolve the application's nullplatform namespace, using namespace '$K8S_NAMESPACE'" >&2
+  elif kubectl get namespace "$NP_NAMESPACE_SLUG" >/dev/null 2>&1; then
+    K8S_NAMESPACE="$NP_NAMESPACE_SLUG"
+  else
+    echo "Namespace '$NP_NAMESPACE_SLUG' does not exist yet (application never deployed), using namespace '$K8S_NAMESPACE'"
+  fi
+fi
+
+echo "Resolved K8S_NAMESPACE=$K8S_NAMESPACE"
+
 export K8S_NAMESPACE

@@ -3,7 +3,8 @@ set -euo pipefail
 
 echo "Checking for path conflicts: $BASE_DOMAIN$PATH_PREFIX"
 
-CONFLICT=$(kubectl get httproute -n "$K8S_NAMESPACE" \
+# Cluster-wide: routes may live in any application namespace.
+CONFLICT=$(kubectl get httproute -A \
     -l "nullplatform.com/managed-by=path-router" \
     -o json 2>/dev/null | \
     jq -r --arg domain "$BASE_DOMAIN" --arg path "$PATH_PREFIX" --arg sid "$SERVICE_ID" '
