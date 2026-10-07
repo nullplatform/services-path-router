@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/nullplatform/services-path-router/compare/v0.1.1...v0.1.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* read the notification context and apply updated values ([#12](https://github.com/nullplatform/services-path-router/issues/12)) ([98fab18](https://github.com/nullplatform/services-path-router/commit/98fab18a3bce61c6097af5d62227fa403225284f))
+
 ## [0.1.1](https://github.com/nullplatform/services-path-router/compare/v0.1.0...v0.1.1) (2026-09-25)
 
 
