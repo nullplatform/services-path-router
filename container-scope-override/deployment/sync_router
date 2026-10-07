@@ -103,7 +103,7 @@ create_attempt=0
 ACTION_ID=""
 
 while [[ -z "$ACTION_ID" || "$ACTION_ID" == "null" ]]; do
-  ((create_attempt++))
+  create_attempt=$((create_attempt + 1))
   echo "DEBUG: Create attempt $create_attempt/$MAX_CREATE_RETRIES"
 
   if [ "$create_attempt" -gt $MAX_CREATE_RETRIES ]; then
@@ -121,7 +121,7 @@ while [[ -z "$ACTION_ID" || "$ACTION_ID" == "null" ]]; do
   ACTION_RESPONSE=$(np service action create --serviceId "$SERVICE_ID" --body "$(jq -n --argjson params "$PARAMETERS" --arg spec_id "$ACTION_SPEC_ID" '{name: "update", parameters: $params, specification_id: $spec_id}')" --format json 2>&1 || true)
 
   # Check if response contains an error about action already in progress
-  if echo "$ACTION_RESPONSE" | grep -q "already an action with status.*in_progress"; then
+  if grep -q "already an action with status.*in_progress" <<< "$ACTION_RESPONSE"; then
     echo "DEBUG: Action already in progress detected"
 
     # Try to find the existing in_progress action
@@ -143,11 +143,11 @@ while [[ -z "$ACTION_ID" || "$ACTION_ID" == "null" ]]; do
     fi
 
     echo "DEBUG: No existing action found, will retry..."
-  elif echo "$ACTION_RESPONSE" | grep -q 'FST_ERR_VALIDATION'; then
+  elif grep -q 'FST_ERR_VALIDATION' <<< "$ACTION_RESPONSE"; then
     # Validation errors are deterministic: retrying the same payload cannot succeed
     echo "ERROR: Action parameters were rejected by validation: $ACTION_RESPONSE"
     exit 1
-  elif echo "$ACTION_RESPONSE" | grep -q '"error"'; then
+  elif grep -q '"error"' <<< "$ACTION_RESPONSE"; then
     echo "ERROR: Failed to create action: $ACTION_RESPONSE"
     echo "DEBUG: Will retry after delay..."
   else
@@ -171,7 +171,7 @@ iteration=0
 
 echo "DEBUG: Starting polling loop for action status..."
 while true; do
-  ((iteration++))
+  iteration=$((iteration + 1))
   echo "DEBUG: Iteration $iteration/$MAX_ITERATIONS"
 
   if [ "$iteration" -gt $MAX_ITERATIONS ]; then
