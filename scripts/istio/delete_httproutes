@@ -1,14 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
+# Cluster-wide by label: with APPLICATION_NAMESPACE_ROUTING the route may live in the
+# application namespace or, if it was created before that namespace existed, in the default one.
+
 if [[ -n "${SCOPE_ID:-}" && "$SCOPE_ID" != "null" ]]; then
-    echo "Deleting HTTPRoute for service=$SERVICE_ID scope=$SCOPE_ID..."
-    kubectl delete httproute -n "$K8S_NAMESPACE" \
+    echo "Deleting HTTPRoute for service=$SERVICE_ID scope=$SCOPE_ID in all namespaces..."
+    kubectl delete httproute -A \
         -l "nullplatform.com/service-id=$SERVICE_ID,nullplatform.com/scope-id=$SCOPE_ID" \
         --ignore-not-found
 else
-    echo "Deleting all HTTPRoutes for service=$SERVICE_ID..."
-    kubectl delete httproute -n "$K8S_NAMESPACE" \
+    echo "Deleting all HTTPRoutes for service=$SERVICE_ID in all namespaces..."
+    kubectl delete httproute -A \
         -l "nullplatform.com/service-id=$SERVICE_ID" \
         --ignore-not-found
 fi

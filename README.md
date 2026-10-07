@@ -54,6 +54,7 @@ Set on the nullplatform agent (`extra_envs` in the agent's tofu module):
 | `PUBLIC_GATEWAY_NAME` | No | `gateway-public` | Name of the Istio Gateway used for scopes with `visibility: public`. |
 | `PRIVATE_GATEWAY_NAME` | No | `gateway-private` | Name of the Istio Gateway used for scopes with `visibility: private`. |
 | `GATEWAY_NAMESPACE` | No | `gateways` | Namespace where the Gateways live. |
+| `APPLICATION_NAMESPACE_ROUTING` | No | `false` | Set to `true` when the scope agent channel deploys each scope into the namespace named after its application's nullplatform namespace (`NAMESPACE_OVERRIDE="{$context.tags.namespace}"`). The HTTPRoute is then created in that namespace, next to the scope's Services. Until the application's first deploy creates the namespace, the route stays in `K8S_NAMESPACE` and the first deploy's `sync_router` update moves it. |
 | `PATH_ROUTER_BASE_DOMAINS` | No | — | Comma-separated `base_domain` values this cluster serves. For installations where several clusters share the spec (e.g. one domain per cloud); set it on the agent or on each cluster's service channel `environment`. When set, create/update fail before touching any route if the `base_domain` isn't in the list or the target scope is deployed in another cluster. Unset, nothing is validated. |
 
 These all have working defaults (`scripts/istio/config`) — you only need to set them if your cluster uses different Gateway names/namespace.
