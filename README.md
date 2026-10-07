@@ -57,7 +57,7 @@ Set on the nullplatform agent (`extra_envs` in the agent's tofu module):
 | `APPLICATION_NAMESPACE_ROUTING` | No | `false` | Set to `true` when the scope agent channel deploys each scope into the namespace named after its application's nullplatform namespace (`NAMESPACE_OVERRIDE="{$context.tags.namespace}"`). The HTTPRoute is then created in that namespace, next to the scope's Services. Until the application's first deploy creates the namespace, the route stays in `K8S_NAMESPACE` and the first deploy's `sync_router` update moves it. |
 | `PATH_ROUTER_BASE_DOMAINS` | No | — | Comma-separated `base_domain` values this cluster serves. For installations where several clusters share the spec (e.g. one domain per cloud); set it on the agent or on each cluster's service channel `environment`. When set, create/update fail before touching any route if the `base_domain` isn't in the list or the target scope is deployed in another cluster. Unset, nothing is validated. |
 
-These all have working defaults (`scripts/istio/config`) — you only need to set them if your cluster uses different Gateway names/namespace.
+These all have working defaults (`scripts/istio/config`). Set the Gateway variables only if your cluster uses different Gateway names or namespace, and `APPLICATION_NAMESPACE_ROUTING` only if your scopes run in per-application namespaces (see [Per-application namespaces](#per-application-namespaces)).
 
 > **`PATH_ROUTER_DOMAINS` is not currently used by the code.** An earlier iteration read a comma-separated domain list from this env var to populate the `base_domain` dropdown at spec-registration time, but the Gomplate array syntax it relied on (`{{ env.Getenv "PATH_ROUTER_DOMAINS" | strings.Split "," | conv.ToJSON }}`) broke `jsondecode()` in the tofu `service_definition` module used to register the spec. It was replaced with a hardcoded JSON array (see below). If this env var is still set in an agent's `extra_envs`, it's harmless but has no effect — remove it once confirmed dead, or wire it back in if the enum is reworked.
 
@@ -204,7 +204,7 @@ module "scope_channel_association" {
 ## How Routing Works
 
 On `create`/`update` (`workflows/istio/{create,update}.yaml`):
-1. `find k8s namespace` — locates the `nullplatform` namespace.
+1. `find k8s namespace` — resolves the namespace the route lives in: `K8S_NAMESPACE` (`nullplatform` by default), or the application's namespace when `APPLICATION_NAMESPACE_ROUTING=true` (see below).
 2. `build context` — resolves the target scope.
 3. `check path conflict` (`scripts/istio/check_path_conflict`) — fails the action if another `HTTPRoute` already serves the same `base_domain` + `path_prefix`.
 4. `delete existing httproute` — removes any prior route for this service (idempotent update).
@@ -212,6 +212,19 @@ On `create`/`update` (`workflows/istio/{create,update}.yaml`):
 6. `apply` — applies the manifest with `kubectl`.
 
 On `delete` (`workflows/istio/delete.yaml`): deletes all `HTTPRoute`s created for the service.
+
+### Per-application namespaces
+
+By default every `HTTPRoute` is created in `K8S_NAMESPACE` (`nullplatform`), the namespace where scopes run in a stock installation. An `HTTPRoute`'s `backendRefs` resolve in the route's own namespace, so the route must live next to the scope's `Service`s.
+
+If the scope agent channel moves each scope into the namespace named after its application's nullplatform namespace (`NAMESPACE_OVERRIDE="{$context.tags.namespace}"`, usually with `CREATE_K8S_NAMESPACE_IF_NOT_EXIST="true"`), set `APPLICATION_NAMESPACE_ROUTING=true` on the agent. Then:
+
+- **Route namespace:** `find k8s namespace` resolves the application's nullplatform namespace (from the action's NRN, or from the application) and uses its slug as the route namespace.
+- **Application never deployed:** its namespace does not exist yet, so the route is created in `K8S_NAMESPACE`. The application's first deploy creates the namespace, and its `sync_router` update moves the route there.
+- **Existing routes:** `delete existing httproute` and `delete` remove the service's routes by label in every namespace, so the next update of each path-router service (any blue/green step through `sync_router`, or a manual update) moves its route from `K8S_NAMESPACE` to the application namespace. `check path conflict` also looks in every namespace.
+- **Gateway:** the Gateway listeners must accept routes from other namespaces (`allowedRoutes.namespaces.from: All`, or a selector that matches the application namespaces). Otherwise the route is created but never attached.
+
+Leave it unset when scopes run in `K8S_NAMESPACE`: with it on, a route would move to a namespace that holds none of the scope's `Service`s.
 
 ## Blue/Green Deployment Sync
 
