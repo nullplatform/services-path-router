@@ -54,6 +54,7 @@ Set on the nullplatform agent (`extra_envs` in the agent's tofu module):
 | `PUBLIC_GATEWAY_NAME` | No | `gateway-public` | Name of the Istio Gateway used for scopes with `visibility: public`. |
 | `PRIVATE_GATEWAY_NAME` | No | `gateway-private` | Name of the Istio Gateway used for scopes with `visibility: private`. |
 | `GATEWAY_NAMESPACE` | No | `gateways` | Namespace where the Gateways live. |
+| `PATH_ROUTER_BASE_DOMAINS` | No | — | Comma-separated `base_domain` values this cluster serves. For installations where several clusters share the spec (e.g. one domain per cloud); set it on the agent or on each cluster's service channel `environment`. When set, create/update fail before touching any route if the `base_domain` isn't in the list or the target scope is deployed in another cluster. Unset, nothing is validated. |
 
 These all have working defaults (`scripts/istio/config`) — you only need to set them if your cluster uses different Gateway names/namespace.
 
@@ -232,4 +233,5 @@ All of these invoke `container-scope-override/deployment/sync_router`, which loo
 
 - `base_domain` is a static enum (see [Adding a New Domain](#adding-a-new-domain)) — there is no dynamic domain list today.
 - DNS is entirely out of band — nothing in this service or in nullplatform provisions it automatically.
+- Without `PATH_ROUTER_BASE_DOMAINS`, a `base_domain` or scope of another cluster isn't detected: the service ends up `active` with a route that answers 404.
 - Mixed-visibility routing on a single `base_domain` is not supported (see the DNS table note above).
