@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/nullplatform/services-path-router/compare/v0.1.2...v0.2.0) (2026-10-07)
+
+
+### Features
+
+* opt-in validation of the target domain and scope ([#14](https://github.com/nullplatform/services-path-router/issues/14)) ([5e69202](https://github.com/nullplatform/services-path-router/commit/5e69202f6d425d13d3f17bef20f1febf0dc317c5))
+
 ## [0.1.2](https://github.com/nullplatform/services-path-router/compare/v0.1.1...v0.1.2) (2026-10-07)
 
 
