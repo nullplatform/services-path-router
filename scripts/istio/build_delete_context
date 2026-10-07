@@ -1,13 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Under `np service workflow exec --build-context` (how entrypoint/service runs
-# these workflows) the CLI sets $CONTEXT to the NRN hierarchy ({account,
-# application, namespace}), which has none of the notification fields read
-# below, so every attribute resolved to null ("base_domain is required").
-# The notification is in $NP_ACTION_CONTEXT (exported by entrypoint/entrypoint,
-# wrapped as {"notification": {...}}, sometimes single-quoted). Same fix as
-# services-endpoint-exposer's build_context.
 CONTEXT=$(echo "${NP_ACTION_CONTEXT:-$CONTEXT}" | sed "s/^'//;s/'$//" | jq -c '.notification // .')
 
 SERVICE_ID=$(echo "$CONTEXT" | jq -r '.service.id')
