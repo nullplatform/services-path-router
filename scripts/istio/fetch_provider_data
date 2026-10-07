@@ -3,6 +3,15 @@
 # Fetch Provider Data: Retrieves Kubernetes namespace from the container orchestration provider.
 # Queries provider data based on service dimensions and exports K8S_NAMESPACE for downstream scripts.
 
+# Under `np service workflow exec --build-context` (how entrypoint/service runs
+# these workflows) the CLI sets $CONTEXT to the NRN hierarchy ({account,
+# application, namespace}), which has none of the notification fields read
+# below, so every attribute resolved to null ("base_domain is required").
+# The notification is in $NP_ACTION_CONTEXT (exported by entrypoint/entrypoint,
+# wrapped as {"notification": {...}}, sometimes single-quoted). Same fix as
+# services-endpoint-exposer's build_context.
+CONTEXT=$(echo "${NP_ACTION_CONTEXT:-$CONTEXT}" | sed "s/^'//;s/'$//" | jq -c '.notification // .')
+
 NRN=$(echo "$CONTEXT" | jq -r .entity_nrn)
 
 DIMENSIONS=$(echo "$CONTEXT" | jq .service.dimensions)
