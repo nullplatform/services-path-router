@@ -1,37 +1,59 @@
 #!/bin/bash
 set -euo pipefail
 
-# Fails before any route is touched when the service can't work from this
-# cluster, instead of publishing a route that only ever answers 404.
+# Only for installations that set PATH_ROUTER_BASE_DOMAINS (several clusters
+# sharing the spec, e.g. one per cloud). Fails before any route is touched
+# when the service can't work from this cluster, instead of publishing a route
+# that only ever answers 404. Without the variable it does nothing.
+#
+# The body is a function so the early outs can `return`: the np CLI ends the
+# whole workflow when a step script calls `exit 0`, skipping the steps after it.
+main() {
+    if [[ -z "${PATH_ROUTER_BASE_DOMAINS:-}" ]]; then
+        echo "PATH_ROUTER_BASE_DOMAINS not set, skipping target validation"
+        return 0
+    fi
 
-if [[ -n "${PATH_ROUTER_BASE_DOMAINS:-}" ]]; then
     if ! tr ',' '\n' <<< "$PATH_ROUTER_BASE_DOMAINS" | grep -qxF "$BASE_DOMAIN"; then
         echo "ERROR: base_domain '$BASE_DOMAIN' is not served by this cluster. Use one of: $PATH_ROUTER_BASE_DOMAINS"
         exit 1
     fi
-fi
 
-SCOPE_ID=$(np scope list --application_id "$APPLICATION_ID" --limit 200 --format json \
-    | jq -r --arg s "$SCOPE_SLUG" '.results // [] | .[] | select(.slug == $s) | .id' | head -1)
+    local scopes scope_id services in_cluster deployments deployed
 
-if [[ -z "$SCOPE_ID" ]]; then
-    echo "ERROR: scope '$SCOPE_SLUG' not found for application $APPLICATION_ID"
-    exit 1
-fi
+    if ! scopes=$(np scope list --application_id "$APPLICATION_ID" --limit 200 --format json); then
+        echo "WARNING: could not list scopes, skipping the scope check"
+        return 0
+    fi
+    scope_id=$(echo "$scopes" | jq -r --arg s "$SCOPE_SLUG" '.results // [] | .[] | select(.slug == $s) | .id' | head -1)
 
-# A scope that was never deployed has no Kubernetes service anywhere yet; its
-# route is synced on the first deploy. One that was deployed but has none here
-# runs in another cluster.
-IN_CLUSTER=$(kubectl get services -n "$K8S_NAMESPACE" -o json \
-    | jq --arg id "$SCOPE_ID" '[.items[] | select(.spec.selector.scope_id == $id)] | length')
-
-if [[ "$IN_CLUSTER" -eq 0 ]]; then
-    DEPLOYED=$(np deployment list --scope_id "$SCOPE_ID" --limit 50 --format json \
-        | jq '[.results // [] | .[] | select(.status == "finalized" or .status == "running" or .status == "finalizing")] | length')
-    if [[ "$DEPLOYED" -gt 0 ]]; then
-        echo "ERROR: scope '$SCOPE_SLUG' is deployed in another cluster. Pick a scope that runs where this service runs (same dimensions)."
+    if [[ -z "$scope_id" ]]; then
+        echo "ERROR: scope '$SCOPE_SLUG' not found for application $APPLICATION_ID"
         exit 1
     fi
-fi
 
-echo "Target OK: $BASE_DOMAIN$PATH_PREFIX → scope $SCOPE_SLUG ($SCOPE_ID)"
+    # A scope that was never deployed has no Kubernetes service anywhere yet;
+    # its route is synced on the first deploy. One that was deployed but has
+    # none here runs in another cluster.
+    if ! services=$(kubectl get services -n "$K8S_NAMESPACE" -o json); then
+        echo "WARNING: could not list services in $K8S_NAMESPACE, skipping the scope check"
+        return 0
+    fi
+    in_cluster=$(echo "$services" | jq --arg id "$scope_id" '[.items[] | select(.spec.selector.scope_id == $id)] | length')
+
+    if [[ "$in_cluster" -eq 0 ]]; then
+        if ! deployments=$(np deployment list --scope_id "$scope_id" --limit 50 --format json); then
+            echo "WARNING: could not list deployments of scope $scope_id, skipping the scope check"
+            return 0
+        fi
+        deployed=$(echo "$deployments" | jq '[.results // [] | .[] | select(.status == "finalized" or .status == "running" or .status == "finalizing")] | length')
+        if [[ "$deployed" -gt 0 ]]; then
+            echo "ERROR: scope '$SCOPE_SLUG' is deployed in another cluster. Pick a scope that runs where this service runs (same dimensions)."
+            exit 1
+        fi
+    fi
+
+    echo "Target OK: $BASE_DOMAIN$PATH_PREFIX → scope $SCOPE_SLUG ($scope_id)"
+}
+
+main "$@"
