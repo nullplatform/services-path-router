@@ -35,10 +35,12 @@ Unlike `rds-postgres-server` or other infra-provisioning services, path-router c
 
 | Attribute | Type | Description |
 |---|---|---|
-| `base_domain` | string (enum) | Shared domain to route on. Must be pre-registered — see [Adding a New Domain](#adding-a-new-domain) below. |
-| `path_prefix` | string | Path prefix to route to the target scope, e.g. `/api-private`. Must match `^/[a-zA-Z0-9_\-]+$`. |
-| `scope` | string | Slug of the target scope to receive traffic. |
+| `base_domain` | string (enum) | Shared domain to route on. Must be pre-registered — see [Adding a New Domain](#adding-a-new-domain) below. With several clusters, use the one served by the cluster where the target scope runs. |
+| `path_prefix` | string | Path prefix to route to the target scope, e.g. `/api-private`. Must match `^/[a-zA-Z0-9_\-]+$` and be unique per `base_domain`. |
+| `scope` | string | Slug of the target scope to receive traffic. It must run in the same cluster as the service and have a finalized deployment. |
 | `strip_prefix` | boolean | If `true` (default), the prefix is stripped before forwarding (`/api-private/health` → `/health`). |
+
+The service's dimensions decide which agent (cluster) runs it, so set them like the target scope's. The path router doesn't use links: creating the service is all it takes.
 
 ## Requirements
 
