@@ -46,7 +46,7 @@
                 "base_domain": {
                     "type": "string",
                     "title": "Base Domain",
-                    "description": "Shared domain for path-based routing.",
+                    "description": "Shared domain for path-based routing. Use the domain served by the cluster where the target scope runs: when several clusters share this service, each one serves its own domain.",
                     "enum": ["path-router.example.com", "path-router.api-private.playground.nullapps.io"]
                 },
                 "strip_prefix": {
@@ -59,12 +59,12 @@
                     "type": "string",
                     "title": "Path Prefix",
                     "pattern": "^/[a-zA-Z0-9_\\-]+$",
-                    "description": "Path prefix to route to this application. Example: /APP1, /api-gateway"
+                    "description": "Path prefix to route to this application, unique per base domain. Example: /APP1, /api-gateway"
                 },
                 "scope": {
                     "type": "string",
                     "title": "Scope",
-                    "description": "Target scope to route traffic to.",
+                    "description": "Target scope to route traffic to. It must run in the same cluster as this service (same dimensions) and have a finalized deployment to answer requests.",
                     "additionalKeywords": {
                         "enum": "[.scopes[]?.slug] | if length == 0 then [\"No scopes available for selected environment\"] else . end"
                     }
