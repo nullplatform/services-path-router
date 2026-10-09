@@ -39,6 +39,11 @@
                                 "scope": "#/properties/scope"
                             }
                         ]
+                    },
+                    {
+                        "type": "Control",
+                        "label": "Additional Path Prefixes",
+                        "scope": "#/properties/extra_path_prefixes"
                     }
                 ]
             },
@@ -60,6 +65,18 @@
                     "title": "Path Prefix",
                     "pattern": "^/[a-zA-Z0-9_\\-]+$",
                     "description": "Path prefix to route to this application, unique per base domain. Example: /APP1, /api-gateway"
+                },
+                "extra_path_prefixes": {
+                    "type": "array",
+                    "title": "Additional Path Prefixes",
+                    "description": "Other path prefixes on the same base domain that also route to this scope, for apps that expose several top-level paths (e.g. /login, /logout). Each one must be unique per base domain.",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^/[a-zA-Z0-9_\\-]+$"
+                    },
+                    "uniqueItems": true,
+                    "maxItems": 15,
+                    "default": []
                 },
                 "scope": {
                     "type": "string",

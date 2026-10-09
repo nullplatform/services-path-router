@@ -16,23 +16,29 @@ spec:
   hostnames:
     - {{ .base_domain }}
   rules:
+{{- range .path_prefixes }}
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .path_prefix }}
-{{ if .strip_prefix }}      filters:
+            value: {{ . }}
+{{- if $.strip_prefix }}
+      filters:
         - type: URLRewrite
           urlRewrite:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
-{{ end }}      backendRefs:
-{{ if .blue_green }}        - name: {{ .blue_service_name }}
-          port: {{ .service_port }}
-          weight: {{ .blue_weight }}
-        - name: {{ .green_service_name }}
-          port: {{ .service_port }}
-          weight: {{ .green_weight }}
-{{ else }}        - name: {{ .service_name }}
-          port: {{ .service_port }}
-{{ end }}
+{{- end }}
+      backendRefs:
+{{- if $.blue_green }}
+        - name: {{ $.blue_service_name }}
+          port: {{ $.service_port }}
+          weight: {{ $.blue_weight }}
+        - name: {{ $.green_service_name }}
+          port: {{ $.service_port }}
+          weight: {{ $.green_weight }}
+{{- else }}
+        - name: {{ $.service_name }}
+          port: {{ $.service_port }}
+{{- end }}
+{{- end }}

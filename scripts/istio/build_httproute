@@ -6,7 +6,7 @@ source "$SERVICE_PATH/scripts/istio/config"
 
 echo "=== Building path-router HTTPRoute ==="
 echo "BASE_DOMAIN:  $BASE_DOMAIN"
-echo "PATH_PREFIX:  $PATH_PREFIX"
+echo "PATH_PREFIXES: $PATH_PREFIXES"
 echo "SCOPE_SLUG:   $SCOPE_SLUG"
 echo "STRIP_PREFIX: $STRIP_PREFIX"
 
@@ -47,7 +47,7 @@ if [[ "$BLUE_GREEN" != "null" && -n "$BLUE_GREEN" ]]; then
         --arg   scope_id          "$SCOPE_ID" \
         --arg   k8s_namespace     "$K8S_NAMESPACE" \
         --arg   base_domain       "$BASE_DOMAIN" \
-        --arg   path_prefix       "$PATH_PREFIX" \
+        --argjson path_prefixes   "$PATH_PREFIXES" \
         --arg   gateway_name      "$GATEWAY_NAME" \
         --arg   gateway_namespace "$GATEWAY_NAMESPACE" \
         --argjson strip_prefix    "$STRIP_PREFIX" \
@@ -61,7 +61,7 @@ if [[ "$BLUE_GREEN" != "null" && -n "$BLUE_GREEN" ]]; then
         '{
           service_id: $service_id, scope_id: $scope_id,
           k8s_namespace: $k8s_namespace, base_domain: $base_domain,
-          path_prefix: $path_prefix, gateway_name: $gateway_name,
+          path_prefixes: $path_prefixes, gateway_name: $gateway_name,
           gateway_namespace: $gateway_namespace, strip_prefix: $strip_prefix,
           service_name: $service_name, service_port: $service_port,
           blue_green: $blue_green,
@@ -74,7 +74,7 @@ else
         --arg   scope_id          "$SCOPE_ID" \
         --arg   k8s_namespace     "$K8S_NAMESPACE" \
         --arg   base_domain       "$BASE_DOMAIN" \
-        --arg   path_prefix       "$PATH_PREFIX" \
+        --argjson path_prefixes   "$PATH_PREFIXES" \
         --arg   gateway_name      "$GATEWAY_NAME" \
         --arg   gateway_namespace "$GATEWAY_NAMESPACE" \
         --argjson strip_prefix    "$STRIP_PREFIX" \
@@ -84,7 +84,7 @@ else
         '{
           service_id: $service_id, scope_id: $scope_id,
           k8s_namespace: $k8s_namespace, base_domain: $base_domain,
-          path_prefix: $path_prefix, gateway_name: $gateway_name,
+          path_prefixes: $path_prefixes, gateway_name: $gateway_name,
           gateway_namespace: $gateway_namespace, strip_prefix: $strip_prefix,
           service_name: $service_name, service_port: $service_port,
           blue_green: $blue_green
