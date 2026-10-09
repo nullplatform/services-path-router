@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/nullplatform/services-path-router/compare/v0.3.0...v0.4.0) (2026-10-09)
+
+
+### Features
+
+* allow a single path router per scope ([#21](https://github.com/nullplatform/services-path-router/issues/21)) ([fa1eff6](https://github.com/nullplatform/services-path-router/commit/fa1eff62f4fdf16f4a84c9b867f6f22096e256ae))
+
 ## [0.3.0](https://github.com/nullplatform/services-path-router/compare/v0.2.0...v0.3.0) (2026-10-09)
 
 
