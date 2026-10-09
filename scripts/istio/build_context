@@ -25,8 +25,17 @@ SCOPE_SLUG=$(attr scope "")
 [[ -z "$PATH_PREFIX" ]]  && { echo "ERROR: path_prefix is required in service attributes"; exit 1; }
 [[ -z "$SCOPE_SLUG" ]]   && { echo "ERROR: scope is required in service attributes"; exit 1; }
 
+# All the prefixes this route serves: path_prefix first, then extra_path_prefixes.
+PATH_PREFIXES=$(echo "$CONTEXT" | jq -c --arg p "$PATH_PREFIX" '
+  [$p] + (.parameters.extra_path_prefixes // .service.attributes.extra_path_prefixes // [])')
+
+if [[ $(echo "$PATH_PREFIXES" | jq 'length != (unique | length)') == "true" ]]; then
+  echo "ERROR: path prefixes must not repeat: $PATH_PREFIXES"
+  exit 1
+fi
+
 export OUTPUT_DIR="${SERVICE_PATH}/output/${SERVICE_SLUG}-${SERVICE_ID}/${ACTION_NAME}-${ACTION_ID}"
 mkdir -p "$OUTPUT_DIR"
 
 export SERVICE_ID SERVICE_SLUG ACTION_ID ACTION_NAME APPLICATION_ID
-export BASE_DOMAIN STRIP_PREFIX PATH_PREFIX SCOPE_SLUG
+export BASE_DOMAIN STRIP_PREFIX PATH_PREFIX PATH_PREFIXES SCOPE_SLUG

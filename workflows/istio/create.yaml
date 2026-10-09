@@ -25,6 +25,8 @@ steps:
         type: environment
       - name: PATH_PREFIX
         type: environment
+      - name: PATH_PREFIXES
+        type: environment
       - name: SCOPE_SLUG
         type: environment
   - name: "validate target"
