@@ -33,6 +33,9 @@ steps:
   - name: "check path conflict"
     type: script
     file: "$SERVICE_PATH/scripts/istio/check_path_conflict"
+  - name: "check single route per scope"
+    type: script
+    file: "$SERVICE_PATH/scripts/istio/check_single_route_per_scope"
   - name: "build httproute"
     type: script
     file: "$SERVICE_PATH/scripts/istio/build_httproute"
