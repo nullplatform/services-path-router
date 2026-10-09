@@ -47,7 +47,7 @@
                     "type": "string",
                     "title": "Base Domain",
                     "description": "Shared domain for path-based routing. Use the domain served by the cluster where the target scope runs: when several clusters share this service, each one serves its own domain.",
-                    "enum": ["path-router.example.com", "path-router.api-private.playground.nullapps.io"]
+                    "enum": ["development.demo.nullapps.io", "stress-test.demo.nullapps.io", "production.demo.nullapps.io", "staging.demo.nullapps.io"]
                 },
                 "strip_prefix": {
                     "type": "boolean",
