@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/nullplatform/services-path-router/compare/v0.2.0...v0.3.0) (2026-10-09)
+
+
+### Features
+
+* **path-router:** add demo.nullapps.io per-environment base domains ([aec5fbb](https://github.com/nullplatform/services-path-router/commit/aec5fbb0e55c3e419c402c4af1d390b2e0cec2d5))
+* **path-router:** add demo.nullapps.io per-environment base domains ([110f1fc](https://github.com/nullplatform/services-path-router/commit/110f1fc943a6b09c0908b462043c8e9f61c8c1ee))
+* **path-router:** add stress-test demo base domain ([d81096f](https://github.com/nullplatform/services-path-router/commit/d81096f542539156ab1fe7fb7790e55c1cddaf5e))
+* **path-router:** drop playground base domain from enum ([fa9d61f](https://github.com/nullplatform/services-path-router/commit/fa9d61fce3a85bca0213f3eb4383a0bee19efda0))
+
 ## [0.2.0](https://github.com/nullplatform/services-path-router/compare/v0.1.2...v0.2.0) (2026-10-07)
 
 
