@@ -35,7 +35,7 @@ Unlike `rds-postgres-server` or other infra-provisioning services, path-router c
 
 | Attribute | Type | Description |
 |---|---|---|
-| `base_domain` | string (enum) | Shared domain to route on. Must be pre-registered — see [Adding a New Domain](#adding-a-new-domain) below. With several clusters, use the one served by the cluster where the target scope runs. |
+| `base_domain` | string | Shared domain to route on, already pointing at the cluster's ingress — see [Adding a new domain](#2-adding-a-new-domain) below. With several clusters, use the one served by the cluster where the target scope runs; the agent's `PATH_ROUTER_BASE_DOMAINS` refuses the others. |
 | `path_prefix` | string | Path prefix to route to the target scope, e.g. `/api-private`. Must match `^/[a-zA-Z0-9_\-]+$` and be unique per `base_domain`. |
 | `scope` | string | Slug of the target scope to receive traffic. It must run in the same cluster as the service and have a finalized deployment. |
 | `strip_prefix` | boolean | If `true` (default), the prefix is stripped before forwarding (`/api-private/health` → `/health`). |
@@ -60,25 +60,13 @@ Set on the nullplatform agent (`extra_envs` in the agent's tofu module):
 
 These all have working defaults (`scripts/istio/config`) — you only need to set them if your cluster uses different Gateway names/namespace.
 
-> **`PATH_ROUTER_DOMAINS` is not currently used by the code.** An earlier iteration read a comma-separated domain list from this env var to populate the `base_domain` dropdown at spec-registration time, but the Gomplate array syntax it relied on (`{{ env.Getenv "PATH_ROUTER_DOMAINS" | strings.Split "," | conv.ToJSON }}`) broke `jsondecode()` in the tofu `service_definition` module used to register the spec. It was replaced with a hardcoded JSON array (see below). If this env var is still set in an agent's `extra_envs`, it's harmless but has no effect — remove it once confirmed dead, or wire it back in if the enum is reworked.
-
 ### 2. Adding a new domain
 
-`base_domain` is a fixed enum in [`specs/service-spec.json.tpl`](specs/service-spec.json.tpl):
-
-```json
-"base_domain": {
-    "type": "string",
-    "title": "Base Domain",
-    "description": "Shared domain for path-based routing.",
-    "enum": ["development.demo.nullapps.io", "stress-test.demo.nullapps.io", "production.demo.nullapps.io", "staging.demo.nullapps.io"]
-}
-```
+`base_domain` is free text, validated as a hostname. The domains a cluster serves are declared on its agent, in `PATH_ROUTER_BASE_DOMAINS` (comma-separated); with it set, create and update refuse a `base_domain` the cluster does not serve, or a target scope deployed elsewhere, before touching any route. Unset, nothing is validated and a typo ends as an `active` service whose route answers 404.
 
 To support a new domain:
-1. Add it to this `enum` array.
-2. Re-register the service specification with nullplatform (however your environment installs `specs/*.json.tpl` — e.g. re-running the tofu `service_definition` module that renders and applies this template).
-3. Complete the DNS step below **before** anyone tries to create a path-router service with that domain — otherwise the route will exist in the cluster but nothing will resolve to it.
+1. Add it to `PATH_ROUTER_BASE_DOMAINS` on the agent (or on the package worker's environment) of the cluster that serves it.
+2. Complete the DNS step below **before** anyone creates a path-router service with that domain — otherwise the route exists in the cluster but nothing resolves to it.
 
 ### 3. DNS record pointing at the load balancer
 
@@ -106,101 +94,96 @@ path-router.example.com.  A (Alias)  →  dualstack.k8s-nullplatform-internet-fa
 
 Note: **which gateway/ALB to point at depends on the visibility of the scopes you intend to route to**, not on the domain name itself — path-router inspects the target scope's `visibility` at request-routing time (`scripts/istio/build_httproute`) and attaches the `HTTPRoute` to the matching Gateway automatically. If a single `base_domain` is ever used to route to scopes of mixed visibility, only one Gateway/ALB will be reachable at a time per route — keep one domain per visibility tier to avoid surprises.
 
-## Tofu Implementation (Registering the Service)
+## Install in your organization
 
-path-router itself creates no AWS infrastructure, but it still needs to be **registered with nullplatform and wired to the agent** via `nullplatform/tofu-modules`. This is normally done in the account's platform-provisioning tofu project (e.g. `services-testing` / `ifr-platformups-*`), not in this repo. Three module calls are involved — a ready-to-copy working example lives in [`specs/install/istio`](specs/install/istio):
+The service is published once as the package `np-path-router` (specification "Path Router"), visible to every organization. You do not copy its specs: you install the package and use it read-only.
 
-### 1. Register the service specification
+How installing a package works, how it coexists with a copy you registered, how to upgrade, and when to fork instead are in the [package installation guide](https://docs.nullplatform.com/docs/packages/install); this section has what is specific to this service.
 
-Renders and pushes `specs/service-spec.json.tpl` (and its `available_links`) to nullplatform as a service specification:
+Already registered a copy from the former `specs/install/istio`? It keeps working: it called tofu-modules' `service_definition` on specs that stay in every release, and the package installs next to it, as the guide explains. If you sourced that directory as a module, pin its `?ref` to a release that still has it. The copy's `base_domain` enum is replaced by `PATH_ROUTER_BASE_DOMAINS` on the agent (see [Adding a new domain](#2-adding-a-new-domain)).
 
-```hcl
-module "service_definition_path_router" {
-  source = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/service_definition?ref=v4.5.1"
+Installing it touches two layers: the agent, which runs the worker and the blue/green sync, and the nullplatform layer. There is no infrastructure module: the service creates no cloud resources.
 
-  nrn               = var.nrn                    # target namespace/account NRN
-  repository_org    = "nullplatform"
-  repository_name   = "services-path-router"
-  repository_branch = "main"                       # or the branch you're testing
-  repository_token  = var.repository_token
-  service_path      = "."                          # root of the repo
-  service_name      = "Path Router"
-  available_links   = ["connect"]
-  available_actions = []
-}
-```
+| Layer | What | Module |
+|---|---|---|
+| agent (Helm) | The package in `worker_orchestrated_packages`, its environment, and the `container-scope-override` on the containers package's worker | tofu-modules' [`nullplatform/agent`](https://github.com/nullplatform/tofu-modules/tree/main/nullplatform/agent) |
+| nullplatform (nullplatform API key) | The installation of the package and the agent channel | tofu-modules' `service_package_installation` |
 
-### 2. Associate the agent with the service (service-level actions)
-
-Creates the notification channel so the agent's `entrypoint` gets invoked for this service's own `create`/`update`/`delete`/`link` actions:
+Pick ONE release of this repository (the latest is on its [releases page](https://github.com/nullplatform/services-path-router/releases)) and use its version in both places below: the override the containers worker fetches is the one this release ships.
 
 ```hcl
-module "service_definition_association_api_key" {
-  source             = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/api_key?ref=v4.5.1"
-  type               = "scope_notification"
-  nrn                = var.nrn
-  specification_slug = "k8s"
-}
+# ── nullplatform layer ───────────────────────────────────────────────
+# For a service the installation is the whole nullplatform side, channel included.
+module "path_router" {
+  source = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/service_package_installation?ref=v9.16.0"
 
-module "service_definition_channel_association_path_router" {
-  source                        = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/service_definition_agent_association?ref=v4.5.1"
-  nrn                           = var.nrn
-  repository_service_spec_repo  = "nullplatform/services-path-router"
-  service_path                  = "."
-  service_specification_slug    = module.service_definition_path_router.service_specification_slug
-  api_key                       = module.service_definition_association_api_key.api_key
-  tags_selectors                = var.tags_selectors_path_router   # e.g. { owner = "api-private" }
-  agent_arguments                = ["--service-path=/root/.np/nullplatform/services-path-router"]
+  nrn                  = var.nrn
+  package_slug         = "np-path-router"
+  package_version      = "X.Y.Z" # the same release, without the v
+  agent_tags_selectors = { cluster = "runtime" } # must match the agent's TAGS
 }
+# Keeping channels in a separate bindings layer instead? Use
+# nullplatform/package_installation here and service_definition_agent_association
+# there, with package_slug = "np-path-router".
+
+# ── agent (tofu-modules' nullplatform/agent) ─────────────────────────
+  worker_orchestrated_packages = ["np-path-router", "np-containers"]
+
+  worker = {
+    patches = [
+      # The path-router worker: the ingress stack and the domains this
+      # cluster serves (scripts/istio/config has the defaults).
+      {
+        target = { package = "np-path-router" }
+        merge = {
+          spec = {
+            containers = [{
+              name = "worker"
+              env = [
+                { name = "INGRESS_TYPE", value = "istio" },
+                { name = "PATH_ROUTER_BASE_DOMAINS", value = "apps.example.com" },
+              ]
+            }]
+          }
+        }
+      },
+      # Blue/green sync: after every deploy of a Containers scope, the
+      # container-scope-override re-points the route at the new Services.
+      # The containers worker runs the scopes image, which does not ship that
+      # override, so an init container fetches it from this release and
+      # NP_OVERRIDES_PATH (read by worker-bridge and passed to the entrypoint
+      # as --overrides-path) points the scope at it. Several overrides join
+      # with a comma (the Endpoint Exposer ships one too).
+      {
+        target = { package = "np-containers" } # or the slug of your containers package
+        merge = {
+          spec = {
+            volumes = [{ name = "path-router-override", emptyDir = {} }]
+            initContainers = [{
+              name         = "fetch-path-router-override"
+              image        = "public.ecr.aws/docker/library/alpine:3.20"
+              command      = ["sh", "-c", "wget -qO- https://github.com/nullplatform/services-path-router/archive/refs/tags/vX.Y.Z.tar.gz | tar -xzC /overrides --strip-components=1"]
+              volumeMounts = [{ name = "path-router-override", mountPath = "/overrides" }]
+            }]
+            containers = [{
+              name         = "worker"
+              volumeMounts = [{ name = "path-router-override", mountPath = "/app/overrides/path-router", readOnly = true }]
+              env          = [{ name = "NP_OVERRIDES_PATH", value = "/app/overrides/path-router/container-scope-override" }]
+            }]
+          }
+        }
+      },
+    ]
+  }
 ```
 
-### 3. Register the `container-scope-override` on the target scope specification
+To upgrade, move `package_version` and the tag of the override to the new release. See tofu-modules' [`service_package_installation`](https://github.com/nullplatform/tofu-modules/tree/main/nullplatform/service_package_installation) for its inputs and outputs.
 
-This is the piece that powers [Blue/Green Deployment Sync](#bluegreen-deployment-sync). It does **not** hook into path-router's own service specification — it hooks into the **scope specification** of the applications path-router will route to, so their deploy workflow calls `container-scope-override/deployment/sync_router` on every blue/green step.
+Prerequisites: an agent whose `TAGS` match the channel's `tags_selectors`, with `public.ecr.aws/nullplatform/*` in `worker.allowedRegistries` and `kubectl` access to the cluster (the worker runs as the agent's service account); Istio with the Gateway API CRDs and the `gateway-public` / `gateway-private` Gateways; and the DNS records of [Requirements](#requirements).
 
-`enabled_override` / `override_repo_path` / `overrides_service_path` are just extra inputs on the standard `scope_definition_agent_association` module — **not** a separate mechanism. If the target scope already has a `scope_definition_agent_association` module call in your project (registering its normal action-notification channel), add these three inputs to that **same** call instead of adding a second one:
+## How the package is published
 
-```hcl
-module "scope_definition_agent_association" {
-  source                   = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/scope_definition_agent_association?ref=v4.5.1"
-  nrn                      = var.nrn
-  tags_selectors           = var.tags_selectors
-  api_key                  = module.scope_definition_agent_association_api_key.api_key
-  scope_specification_id   = module.scope_definition.service_specification_id
-  scope_specification_slug = module.scope_definition.service_slug
-
-  # path-router container-scope-override — added to the scope's existing channel,
-  # not a separate module instance (see warning below).
-  enabled_override        = true
-  override_repo_path      = "/root/.np/nullplatform/services-path-router"
-  overrides_service_path  = "/container-scope-override"
-}
-```
-
-> **Don't add a second `scope_definition_agent_association`-based module call for the same scope just to carry the override.** The channel's `filters` are built solely from `scope_specification_slug` / `scope_specification_id` (see `k8s/specs/notification-channel.json.tpl` in `nullplatform/scopes`) — `enabled_override` doesn't change them, it only appends `--overrides-path=...` to the channel's `cmdline`. Two module calls pointed at the same scope produce two `nullplatform_notification_channel` resources with **identical filters**, so every action notification for that scope fires both channels: the base entrypoint logic runs twice, once per channel, and one of the two invocations additionally triggers the override sync. Only reach for a dedicated `scope_channel_association`-style module (below) when the target scope does **not** already have its own agent association in your project.
-
-If the target scope has no existing `scope_definition_agent_association` in your project (e.g. it's a shared scope another team owns and you're only adding the override), register a dedicated instance instead:
-
-```hcl
-module "scope_channel_association" {
-  for_each = toset([
-    "/container-scope-override",
-    # add one entry per service that ships a container-scope-override directory
-  ])
-
-  source                   = "git::https://github.com/nullplatform/tofu-modules.git//nullplatform/scope_definition_agent_association?ref=v4.5.1"
-  nrn                      = var.nrn
-  tags_selectors           = var.tags_selectors_path_router
-  api_key                  = module.service_definition_association_api_key.api_key
-  scope_specification_id   = var.scope_specification_id      # the scope spec apps deploy under
-  scope_specification_slug = var.scope_specification_slug
-  enabled_override         = true
-  override_repo_path       = "/root/.np/nullplatform/services-path-router"
-  overrides_service_path   = each.value
-}
-```
-
-> **This `for_each` list is the actual mechanism behind the blue-green sync — and the actual failure mode to watch for.** Every path in the set gets its `container-scope-override` invoked on **every** deployment event of the target scope, unconditionally. If an entry stays in this list after its corresponding service has been removed from nullplatform (e.g. a leftover `"/endpoint-exposer/container-scope-override"` from a decommissioned service), that override still fires on every blue/green deploy, fails when it can't resolve a service specification, and **rolls back the entire deployment** — even though it has nothing to do with path-router. Keep this list in sync with the services actually registered in the account, in addition to keeping the services repo checkout itself up to date (see the note under Blue/Green Deployment Sync below).
+Every release publishes a new revision of the package from this repository, in the same run that pushes the worker image ([`.github/workflows/release.yml`](./.github/workflows/release.yml)): the `publish-package` job applies [`publish`](./publish), a stack on tofu-modules' `service_package_publish`, which pins this tag's specs and the image by digest. The package version is the release tag, as for the image. The stack keeps its state where the organization secrets `PACKAGE_STATE_AWS_ACCOUNT_ID`, `PACKAGE_TFSTATE_BUCKET` and `PACKAGE_TFSTATE_REGION` point; the state role is `github-actions-<repository>-package-state` in that account, by convention.
 
 ## How Routing Works
 
@@ -229,11 +212,11 @@ On `delete` (`workflows/istio/delete.yaml`): deletes all `HTTPRoute`s created fo
 
 All of these invoke `container-scope-override/deployment/sync_router`, which looks up the path-router service instance for the current application (`SERVICE_SPECIFICATION_SLUG=path-router`, set in `container-scope-override/values.yaml`) and triggers its `update-path-router` action, then polls until it completes. Only an **active** instance whose `scope` attribute matches the slug of the scope being deployed is selected, so applications with several path-router instances (one per scope, or leftovers whose creation failed) update the right one. **If no such path-router service exists for the application, this step exits cleanly (status 0) — it's a no-op, not an error.** A payload rejected by validation fails the step immediately instead of being retried.
 
-> Which override directories actually get invoked is controlled by the `scope_channel_association` tofu resource's `for_each` set (see [Tofu Implementation](#3-register-the-container-scope-override-on-the-target-scope-specification) above) — it is **not** derived from scanning the filesystem. Two things both need to hold for this to work reliably: (1) the `for_each` list must only contain paths for services still registered in nullplatform — a leftover entry for a decommissioned service fails and **rolls back the entire deployment**, unrelated to path-router; and (2) the agent's checkout of this repo must actually contain the directory each listed path points to — an unmerged/stale feature branch missing a path that's still in the `for_each` list will fail the same way. Keep both the tofu `for_each` list and the branch in sync with what's actually deployed.
+> Which overrides run is decided by the containers worker's `NP_OVERRIDES_PATH` (see [Install in your organization](#install-in-your-organization)): every directory listed there runs on **every** deployment event of the scope, unconditionally. An entry left for a service no longer installed fails when it cannot resolve the specification and **rolls back the entire deployment**; keep the list and the fetched release in sync with what is installed.
 
 ## Known Limitations
 
-- `base_domain` is a static enum (see [Adding a New Domain](#adding-a-new-domain)) — there is no dynamic domain list today.
+- The domains a cluster serves are not discovered: they are declared in `PATH_ROUTER_BASE_DOMAINS` (see [Adding a new domain](#2-adding-a-new-domain)).
 - DNS is entirely out of band — nothing in this service or in nullplatform provisions it automatically.
 - Without `PATH_ROUTER_BASE_DOMAINS`, a `base_domain` or scope of another cluster isn't detected: the service ends up `active` with a route that answers 404.
 - Mixed-visibility routing on a single `base_domain` is not supported (see the DNS table note above).
