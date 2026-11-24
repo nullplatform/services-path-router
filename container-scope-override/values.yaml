@@ -1,2 +1,6 @@
 configuration:
-  SERVICE_SPECIFICATION_SLUG: path-router
+  # Slug of the service specification the package installs ("Path Router" from
+  # specs/service-spec.json.tpl, published as np-path-router). A copy registered
+  # from the specs directory is "path-router"; deployment/sync_router looks up
+  # both unless PATH_ROUTER_SERVICE_SPECIFICATION_SLUG names one.
+  SERVICE_SPECIFICATION_SLUG: np-path-router
