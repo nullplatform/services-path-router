@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/nullplatform/services-path-router/compare/v0.5.0...v0.5.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **override:** sync the installed package's specification and skip when none is visible ([b2e1724](https://github.com/nullplatform/services-path-router/commit/b2e1724d042c48b6cbaa8965a60bf70790f95a40))
+* **override:** sync the installed package's specification and skip when none is visible ([77556cc](https://github.com/nullplatform/services-path-router/commit/77556cc21f6d18f7f6de34eec62766ef6fde7adb))
+
 ## [0.5.0](https://github.com/nullplatform/services-path-router/compare/v0.4.0...v0.5.0) (2026-11-24)
 
 
