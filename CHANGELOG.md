@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/nullplatform/services-path-router/compare/v0.4.0...v0.5.0) (2026-11-24)
+
+
+### Features
+
+* **package:** publish the service as a global package ([764d080](https://github.com/nullplatform/services-path-router/commit/764d0806c414ad268ff1a36f4e68699ac3797e48))
+* **package:** publish the service as a global package ([a62a4a3](https://github.com/nullplatform/services-path-router/commit/a62a4a34397835954b6bf9d22b59960324cef93f))
+
 ## [0.4.0](https://github.com/nullplatform/services-path-router/compare/v0.3.0...v0.4.0) (2026-10-09)
 
 
