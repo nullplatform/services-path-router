@@ -46,8 +46,8 @@
                 "base_domain": {
                     "type": "string",
                     "title": "Base Domain",
-                    "description": "Shared domain for path-based routing. Use the domain served by the cluster where the target scope runs: when several clusters share this service, each one serves its own domain.",
-                    "enum": ["development.demo.nullapps.io", "stress-test.demo.nullapps.io", "production.demo.nullapps.io", "staging.demo.nullapps.io"]
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+                    "description": "Shared domain for path-based routing, already pointing at the cluster's ingress. Use the domain served by the cluster where the target scope runs: when several clusters share this service, each one serves its own domain, declared on its agent in PATH_ROUTER_BASE_DOMAINS."
                 },
                 "strip_prefix": {
                     "type": "boolean",

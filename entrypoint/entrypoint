@@ -6,6 +6,13 @@ if [ -z "$NP_ACTION_CONTEXT" ]; then
   exit 1
 fi
 
+# Bridge the agent API key to the np CLI: np-agent passes NP_API_KEY, the CLI
+# expects NULLPLATFORM_API_KEY. Without it `np service action update` fails with
+# "please login first".
+if [ -n "${NP_API_KEY:-}" ] && [ -z "${NULLPLATFORM_API_KEY:-}" ]; then
+  export NULLPLATFORM_API_KEY="$NP_API_KEY"
+fi
+
 CLEAN_CONTEXT=$(echo "$NP_ACTION_CONTEXT" | sed "s/^'//;s/'$//")
 
 export NP_ACTION_CONTEXT="$CLEAN_CONTEXT"
