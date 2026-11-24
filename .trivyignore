@@ -1,0 +1,8 @@
+# Trivy misconfiguration suppressions for this repo (intentional, documented).
+
+# DS-0026 (no HEALTHCHECK in the Dockerfile): the image runs as an ephemeral
+# worker pod that the nullplatform agent starts, talks to and reaps; there is
+# no long-lived server in it to probe, and Kubernetes ignores Docker
+# HEALTHCHECK anyway.
+AVD-DS-0026
+DS-0026
